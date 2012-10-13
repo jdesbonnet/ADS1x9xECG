@@ -35,12 +35,15 @@ static uint8_t bits = 8;
 static uint32_t speed = 500000;
 static uint16_t delay;
 
-static void transfer(int fd)
+static void mcp482x_write_dac(int fd,int value)
 {
 	int ret;
 	uint8_t tx[] = {
 		0x10, 0xff
 	};
+
+	tx[1] = value & 0xff;
+
 	uint8_t rx[ARRAY_SIZE(tx)] = {0, };
 	struct spi_ioc_transfer tr = {
 		.tx_buf = (unsigned long)tx,
@@ -196,7 +199,10 @@ int main(int argc, char *argv[])
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
-	transfer(fd);
+	int dac = 0;
+	while (1) {
+		mcp482x_write_dac(fd,dac++);
+	}
 
 	close(fd);
 
