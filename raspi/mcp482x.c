@@ -58,12 +58,6 @@ static void mcp482x_write_dac(int fd,int value)
 	if (ret < 1)
 		pabort("can't send spi message");
 
-	for (ret = 0; ret < ARRAY_SIZE(tx); ret++) {
-		if (!(ret % 6))
-			puts("");
-		printf("%.2X ", rx[ret]);
-	}
-	puts("");
 }
 
 static void print_usage(const char *prog)
