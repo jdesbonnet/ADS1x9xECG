@@ -39,9 +39,10 @@ static void mcp482x_write_dac(int fd,int value)
 {
 	int ret;
 	uint8_t tx[] = {
-		0x10, 0xff
+		0x10, 0xff 
 	};
 
+	//tx[0] &= ((value >> 8)&0x0f);
 	tx[1] = value & 0xff;
 
 	uint8_t rx[ARRAY_SIZE(tx)] = {0, };
