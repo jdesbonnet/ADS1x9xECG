@@ -63,7 +63,7 @@ static void ads1292_command (int fd, int cmd)
 		.bits_per_word = bits,
 	};
 
-	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
+	int ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
 	if (ret < 1) {
 		pabort("can't send spi message");
 	}
@@ -238,6 +238,10 @@ int main(int argc, char *argv[])
 	printf("spi mode: %d\n", mode);
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
+
+
+	ads1292_command (fd,CMD_WAKEUP);
+	ads1292_command (fd,CMD_START);
 
 	int i;
 	for (i = 0; i < 16; i++) {
