@@ -13,6 +13,11 @@
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 
+#define REG_ID 0x00;
+#define REG_CONFIG1 0x01;
+#define REG_CONFIG2 0x02;
+#define REG_LOFF 0x03;
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 static void pabort(const char *s)
@@ -27,15 +32,21 @@ static uint8_t bits = 8;
 static uint32_t speed = 500000;
 static uint16_t delay;
 
-static void mcp482x_write_dac(int fd,int value)
+static void ads1292_read_register (int fd, int reg)
 {
+
+	reg &= 0x1f;
+	reg |= 0x20;
+
+	int nreg = 0;
+
 	int ret;
 	uint8_t tx[] = {
 		0x10, 0xff 
 	};
 
-	//tx[0] &= ((value >> 8)&0x0f);
-	tx[1] = value & 0xff;
+	tx[0] = reg;
+	tx[1] = nreg;
 
 	uint8_t rx[ARRAY_SIZE(tx)] = {0, };
 	struct spi_ioc_transfer tr = {
@@ -48,8 +59,9 @@ static void mcp482x_write_dac(int fd,int value)
 	};
 
 	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
-	if (ret < 1)
+	if (ret < 1) {
 		pabort("can't send spi message");
+	}
 
 }
 
