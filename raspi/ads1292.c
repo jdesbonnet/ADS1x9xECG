@@ -43,13 +43,13 @@ static int ads1292_read_register (int fd, int reg)
 
 	int ret;
 	uint8_t tx[] = {
-		0x10, 0xff 
+		0x10, 0xff,0x00,0x00 
 	};
 
 	tx[0] = reg;
 	tx[1] = nreg;
 
-	uint8_t rx[ARRAY_SIZE(tx)] = {0, };
+	uint8_t rx[ARRAY_SIZE(tx)] = {0, 0};
 	struct spi_ioc_transfer tr = {
 		.tx_buf = (unsigned long)tx,
 		.rx_buf = (unsigned long)rx,
@@ -66,6 +66,8 @@ static int ads1292_read_register (int fd, int reg)
 
 	return rx[0];
 }
+
+
 
 static void print_usage(const char *prog)
 {
@@ -200,7 +202,10 @@ int main(int argc, char *argv[])
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
-	int regVal = ads1292_read_register (fd,REG_ID);
+	int i;
+	for (i = 0; i < 16; i++) {
+		int regVal = ads1292_read_register (fd,i);
+	}
 
 	close(fd);
 
