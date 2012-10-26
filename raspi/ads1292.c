@@ -13,10 +13,11 @@
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 
-#define REG_ID 0x00;
-#define REG_CONFIG1 0x01;
-#define REG_CONFIG2 0x02;
-#define REG_LOFF 0x03;
+// ADS1292 registers
+#define REG_ID 0x00
+#define REG_CONFIG1 0x01
+#define REG_CONFIG2 0x02
+#define REG_LOFF 0x03
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -32,7 +33,7 @@ static uint8_t bits = 8;
 static uint32_t speed = 500000;
 static uint16_t delay;
 
-static void ads1292_read_register (int fd, int reg)
+static int ads1292_read_register (int fd, int reg)
 {
 
 	reg &= 0x1f;
@@ -63,6 +64,7 @@ static void ads1292_read_register (int fd, int reg)
 		pabort("can't send spi message");
 	}
 
+	return rx[0];
 }
 
 static void print_usage(const char *prog)
@@ -198,10 +200,7 @@ int main(int argc, char *argv[])
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
 
-	int dac = 0;
-	while (1) {
-		mcp482x_write_dac(fd,dac++);
-	}
+	int regVal = ads1292_read_register (fd,REG_ID);
 
 	close(fd);
 
