@@ -262,9 +262,11 @@ void display_hex(uint8_t *buf, int length) {
 int ads1292r_evm_read_response (int fd) {
 	
 	int i;
-	uint8_t c,heart_rate,respiration,lead_off;
+	uint8_t c,v,heart_rate,respiration,lead_off;
+	uint8_t buf[8];
 	int16_t sample;
 
+	// Wait for start of data header
 	do {
 		read_n_bytes (fd,&c,1);
 		//fprintf (stderr,"%02x .",c);
@@ -289,6 +291,18 @@ int ads1292r_evm_read_response (int fd) {
 			read_n_bytes (fd,&sample,2);
 			fprintf (stdout,"%d\n", sample);
 		}
+		break;
+
+		case READ_REG_COMMAND:
+		read_n_bytes (fd,buf,5);
+		v = buf[1];
+		fprintf (stdout,"regval=%x\n",v);
+		break;
+		
+		default:
+		fprintf (stderr,"unknown packet type\n");
+		read_n_bytes (fd,&sample,2);
+		fprintf (stdout,"%000x\n",sample);
 	}
 
 	return 0;
@@ -403,12 +417,21 @@ int main( int argc, char **argv) {
 	// Ignore anything aleady in the buffer
 	tcflush (fd,TCIFLUSH);
 
+	// Read registers
 
+	int i;
+	for (i = 0; i < 16; i++) {
+	fprintf (stderr,"reg=%d ",i);
+		ads1292r_evm_write_cmd(fd,READ_REG_COMMAND,i,0x00);
+		ads1292r_evm_read_response(fd);
+	}
+
+/*
 	ads1292r_evm_write_cmd(fd,DATA_STREAMING_PACKET,0x01,0x00);
-
 	while (1) {
 		ads1292r_evm_read_response (fd);
 	}
+*/
 
 	ads1292r_evm_close(fd);
 
