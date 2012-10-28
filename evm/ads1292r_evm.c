@@ -48,7 +48,7 @@
 #define DATA_DOWNLOAD_COMMAND		0x96
 #define FIRMWARE_UPGRADE_COMMAND	0x97
 #define START_RECORDING_COMMAND		0x98
-#define FIRMWARE_VERSION_REQ		0x99
+#define CMD_QUERY_FIRMWARE_VERSION		0x99
 #define STATUS_INFO_REQ 			0x9A
 #define FILTER_SELECT_COMMAND		0x9B
 #define ERASE_MEMORY_COMMAND		0x9C
@@ -304,11 +304,19 @@ int ads1292r_evm_read_response (int fd) {
 		v = buf[1];
 		fprintf (stdout,"%x\n",v);
 		break;
+
+		case CMD_QUERY_FIRMWARE_VERSION:
+		read_n_bytes (fd,buf,2);
+		fprintf (stdout,"%d.%d\n",buf[0],buf[1]);
+		break;
 		
 		default:
 		fprintf (stderr,"unknown packet type\n");
-		read_n_bytes (fd,&sample,2);
-		fprintf (stdout,"%0x\n",sample);
+		do {
+			read_n_bytes(fd,buf,1);
+			display_hex(buf,1);
+		} while (buf[0] != END_DATA_HEADER);
+		fprintf (stderr, "\n");
 	}
 
 	return 0;
@@ -453,6 +461,11 @@ int main( int argc, char **argv) {
 	if (strcmp("stream_stop",command)==0) {
 		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
+	if (strcmp("firmware",command)==0) {
+		ads1292r_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
+		ads1292r_evm_read_response(fd);
+	}
+
 
 	ads1292r_evm_close(fd);
 
