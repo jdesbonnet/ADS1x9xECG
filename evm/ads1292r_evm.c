@@ -42,17 +42,22 @@
 
 #define CMD_DATA_STREAMING		0x93
 #define DATA_STREAMING_PACKET		0x93
-#define ACQUIRE_DATA_COMMAND		0x94
-#define ACQUIRE_DATA_PACKET 		0x94
+#define CMD_ACQUIRE_DATA		0x94
+
 #define PROC_DATA_DOWNLOAD_COMMAND	0x95
 #define DATA_DOWNLOAD_COMMAND		0x96
 #define FIRMWARE_UPGRADE_COMMAND	0x97
 #define START_RECORDING_COMMAND		0x98
+
+// Works.
 #define CMD_QUERY_FIRMWARE_VERSION		0x99
+
 #define STATUS_INFO_REQ 			0x9A
 #define FILTER_SELECT_COMMAND		0x9B
 #define ERASE_MEMORY_COMMAND		0x9C
-#define RESTART_COMMAND				0x9D
+
+// Seems to have no effect
+#define CMD_RESTART				0x9D
 
 
 #define END_DATA_HEADER				0x03
@@ -289,7 +294,7 @@ int ads1292r_evm_read_response (int fd) {
 		read_n_bytes (fd,&respiration,1);
 		read_n_bytes (fd,&lead_off,1);
 
-		//fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",heart_rate,respiration,lead_off);
+		fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",heart_rate,respiration,lead_off);
 
 		for (i = 0; i < 14; i++) {
 			read_n_bytes (fd,&sample,2);
@@ -465,7 +470,18 @@ int main( int argc, char **argv) {
 		ads1292r_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
 		ads1292r_evm_read_response(fd);
 	}
-
+	if (strcmp("restart",command)==0) {
+		ads1292r_evm_write_cmd(fd,CMD_RESTART,0x00,0x00);
+		ads1292r_evm_read_response(fd);
+	}
+	if (strcmp("acquire_data",command)==0) {
+		int nsamples = atoi(argv[optind+2]);
+		nsamples &= 0xffff;
+		fprintf (stderr,"nsamples=%d\n",nsamples);
+		//ads1292r_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
+		ads1292r_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
+		ads1292r_evm_read_response(fd);
+	}
 
 	ads1292r_evm_close(fd);
 
