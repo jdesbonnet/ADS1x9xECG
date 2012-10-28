@@ -36,9 +36,11 @@
 
 // Command definitions from ADS1x9x_USB_Communication.h
 #define START_DATA_HEADER			0x02
-#define WRITE_REG_COMMAND			0x91
-#define READ_REG_COMMAND			0x92
-#define DATA_STREAMING_COMMAND		0x93
+
+#define CMD_REG_WRITE			0x91
+#define CMD_REG_READ			0x92
+
+#define CMD_DATA_STREAMING		0x93
 #define DATA_STREAMING_PACKET		0x93
 #define ACQUIRE_DATA_COMMAND		0x94
 #define ACQUIRE_DATA_PACKET 		0x94
@@ -297,10 +299,10 @@ int ads1292r_evm_read_response (int fd) {
 		}
 		break;
 
-		case READ_REG_COMMAND:
+		case CMD_REG_READ:
 		read_n_bytes (fd,buf,5);
 		v = buf[1];
-		fprintf (stdout,"regval=%x\n",v);
+		fprintf (stdout,"%x\n",v);
 		break;
 		
 		default:
@@ -314,9 +316,9 @@ int ads1292r_evm_read_response (int fd) {
 
 /**
  * Write a command. Commands are:
- * WRITE_REG_COMMAND (0x91): register, value
- * READ_REG_COMMAND (0x92): register, 0x00
- * DATA_STREAMING_PACKET (0x93): on/off, 0x00  (0x00 = off, 0x01 = on)
+ * CMD_REG_WRITE (0x91): register, value
+ * CMD_REG_READ (0x92): register, 0x00
+ * CMD_DATA_STREAMING (0x93): on/off, 0x00  (0x00 = off, 0x01 = on)
  *
  * @return Always 0.
  */
@@ -431,22 +433,25 @@ int main( int argc, char **argv) {
 
 	if (strcmp("readreg",command)==0) {
 		int reg = atoi(argv[optind+2]);
-		ads1292r_evm_write_cmd(fd,READ_REG_COMMAND,reg,0x00);
+		ads1292r_evm_write_cmd(fd,CMD_REG_READ,reg,0x00);
 		ads1292r_evm_read_response(fd);
 	}
 
 	if (strcmp("writereg",command)==0) {
 		int reg = atoi(argv[optind+2]);
 		int val = atoi(argv[optind+3]);
-		ads1292r_evm_write_cmd(fd,READ_REG_COMMAND,reg,val);
+		ads1292r_evm_write_cmd(fd,CMD_REG_WRITE,reg,val);
 		ads1292r_evm_read_response(fd);
 	}
 
 	if (strcmp("stream",command)==0) {
-		ads1292r_evm_write_cmd(fd,DATA_STREAMING_COMMAND,0x01,0x00);
+		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x01,0x00);
 		while (1) {
 			ads1292r_evm_read_response (fd);
 		}
+	}
+	if (strcmp("stream_stop",command)==0) {
+		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
 
 	ads1292r_evm_close(fd);
