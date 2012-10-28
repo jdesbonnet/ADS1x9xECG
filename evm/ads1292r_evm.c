@@ -31,6 +31,8 @@
 #define TRUE 1
 #define FALSE 0
 
+#define FORMAT_DECIMAL 1
+#define FORMAT_BINARY 2
 
 // Command definitions from ADS1x9x_USB_Communication.h
 #define START_DATA_HEADER			0x02
@@ -49,6 +51,8 @@
 #define FILTER_SELECT_COMMAND		0x9B
 #define ERASE_MEMORY_COMMAND		0x9C
 #define RESTART_COMMAND				0x9D
+
+
 #define END_DATA_HEADER				0x03
 
 // ADS1292R registers
@@ -302,7 +306,7 @@ int ads1292r_evm_read_response (int fd) {
 		default:
 		fprintf (stderr,"unknown packet type\n");
 		read_n_bytes (fd,&sample,2);
-		fprintf (stdout,"%000x\n",sample);
+		fprintf (stdout,"%0x\n",sample);
 	}
 
 	return 0;
@@ -334,10 +338,12 @@ int ads1292r_evm_write_cmd (int fd, int cmd, int param0, int param1) {
 
 int main( int argc, char **argv) {
 
-	int channel=12;
 	int speed = 9600;
+	int stream_format = FORMAT_DECIMAL;
 
 	char *device;
+	char *command;
+	char *param;
 
 	// Setup signal handler. Catching SIGPIPE allows for exit when 
 	// piping to Wireshark for live packet feed.
@@ -358,6 +364,12 @@ int main( int argc, char **argv) {
 				break;
 			case 'd':
 				debug_level = atoi (optarg);
+				break;
+
+			case 'f':
+				if (optarg[0] = 'b') {
+					stream_format = FORMAT_BINARY;
+				}
 				break;
 			
 
@@ -395,11 +407,11 @@ int main( int argc, char **argv) {
 	}
 
 	device = argv[optind];
-	//channel = atoi(argv[optind+1]);
+	command = argv[optind+1];
 
 	if (debug_level > 0) {
 		debug (1,"device=%s",device);
-		debug (1,"channel=%d",channel);
+		debug (1,"command=%d",command);
 	}
 
 	if (debug_level > 0) {
@@ -417,21 +429,25 @@ int main( int argc, char **argv) {
 	// Ignore anything aleady in the buffer
 	tcflush (fd,TCIFLUSH);
 
-	// Read registers
-
-	int i;
-	for (i = 0; i < 16; i++) {
-	fprintf (stderr,"reg=%d ",i);
-		ads1292r_evm_write_cmd(fd,READ_REG_COMMAND,i,0x00);
+	if (strcmp("readreg",command)==0) {
+		int reg = atoi(argv[optind+2]);
+		ads1292r_evm_write_cmd(fd,READ_REG_COMMAND,reg,0x00);
 		ads1292r_evm_read_response(fd);
 	}
 
-/*
-	ads1292r_evm_write_cmd(fd,DATA_STREAMING_PACKET,0x01,0x00);
-	while (1) {
-		ads1292r_evm_read_response (fd);
+	if (strcmp("writereg",command)==0) {
+		int reg = atoi(argv[optind+2]);
+		int val = atoi(argv[optind+3]);
+		ads1292r_evm_write_cmd(fd,READ_REG_COMMAND,reg,val);
+		ads1292r_evm_read_response(fd);
 	}
-*/
+
+	if (strcmp("stream",command)==0) {
+		ads1292r_evm_write_cmd(fd,DATA_STREAMING_COMMAND,0x01,0x00);
+		while (1) {
+			ads1292r_evm_read_response (fd);
+		}
+	}
 
 	ads1292r_evm_close(fd);
 
