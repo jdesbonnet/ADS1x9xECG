@@ -38,13 +38,13 @@
 #define FORMAT_BINARY 2
 
 // Command definitions from ADS1x9x_USB_Communication.h
-#define START_DATA_HEADER			0x02
+
 
 #define CMD_REG_WRITE			0x91
 #define CMD_REG_READ			0x92
 
+
 #define CMD_DATA_STREAMING		0x93
-#define DATA_STREAMING_PACKET		0x93
 
 #define CMD_ACQUIRE_DATA		0x94
 
@@ -53,7 +53,7 @@
 #define FIRMWARE_UPGRADE_COMMAND	0x97
 #define START_RECORDING_COMMAND		0x98
 
-// Works.
+
 #define CMD_QUERY_FIRMWARE_VERSION		0x99
 
 #define STATUS_INFO_REQ 			0x9A
@@ -63,18 +63,20 @@
 // Seems to have no effect
 #define CMD_RESTART				0x9D
 
-
+// Host <-> EVM data frames
+// START_DATA_HEADER (packet type/cmd) (data ...) END_DATA_HEADER
+#define START_DATA_HEADER			0x02
 #define END_DATA_HEADER				0x03
 
-// ADS1292R registers
+// ADS1292R registers. ADS129x[R] datasheet, Table 14, page 39.
 // RegAddr RegName: Bit7 Bit6 .. Bit0 [value on reset]
 // 0x00 ID: REV_ID7 REV_ID6 REV_ID5 1 0 0 REV_ID1 REV_ID0 [factory programmed]
 // 0x01 CONFIG1: SINGLE-SHOT 0 0 0 0 DR2 DR1 DR0 [0x02 on reset]
 // 0x02 CONFIG2: 1 PBD_LOFF_COMP PDB_REFBUF VREF_4V CLK_EN 0 INT_TEST TEST_FREQ [0x80 on reset]
 // 0x03 LOFF: COMP_TH2 COMP_TH1 COMP_TH0 1 ILEAD_OFF1 ILEAD_OFF0 0 FLEAD_OFF [0x10 on reset]
 // 0x04 CH1SET: PD1 GAIN1_2 GAIN1_1 GAIN1_0 MUX1_3 MUX1_2 MUX1_1 MUX1_0 [0x00]
-// 0x05 CH1SET: PD2 GAIN2_2 GAIN2_1 GAIN2_0 MUX2_3 MUX2_2 MUX2_1 MUX2_0 [0x00]
-
+// 0x05 CH2SET: PD2 GAIN2_2 GAIN2_1 GAIN2_0 MUX2_3 MUX2_2 MUX2_1 MUX2_0 [0x00]
+//
 #define REG_ID 0x00
 
 
@@ -293,39 +295,39 @@ int ads1292r_evm_read_response (int fd) {
 	read_n_bytes (fd,&c,1);
 	//fprintf (stderr,"c=%02x\n",c);
 	switch (c) {
-		case DATA_STREAMING_PACKET:
-		read_n_bytes (fd,&heart_rate,1);
-		read_n_bytes (fd,&respiration,1);
-		read_n_bytes (fd,&lead_off,1);
+		case CMD_DATA_STREAMING:
+			read_n_bytes (fd,&heart_rate,1);
+			read_n_bytes (fd,&respiration,1);
+			read_n_bytes (fd,&lead_off,1);
 
-		fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",heart_rate,respiration,lead_off);
+			fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",heart_rate,respiration,lead_off);
 
-		for (i = 0; i < 14; i++) {
-			read_n_bytes (fd,&sample,2);
-			fprintf (stdout,"%d ", sample);
-			read_n_bytes (fd,&sample,2);
-			fprintf (stdout,"%d\n", sample);
-		}
-		break;
+			for (i = 0; i < 14; i++) {
+				read_n_bytes (fd,&sample,2);
+				fprintf (stdout,"%d ", sample);
+				read_n_bytes (fd,&sample,2);
+				fprintf (stdout,"%d\n", sample);
+			}
+			break;
 
 		case CMD_REG_READ:
-		read_n_bytes (fd,buf,5);
-		v = buf[1];
-		fprintf (stdout,"%x\n",v);
-		break;
+			read_n_bytes (fd,buf,5);
+			v = buf[1];
+			fprintf (stdout,"%x\n",v);
+			break;
 
 		case CMD_QUERY_FIRMWARE_VERSION:
-		read_n_bytes (fd,buf,2);
-		fprintf (stdout,"%d.%d\n",buf[0],buf[1]);
-		break;
+			read_n_bytes (fd,buf,2);
+			fprintf (stdout,"%d.%d\n",buf[0],buf[1]);
+			break;
 		
 		default:
-		fprintf (stderr,"unknown packet type %x\n",c);
-		do {
-			read_n_bytes(fd,buf,1);
-			display_hex(buf,1);
-		} while (buf[0] != END_DATA_HEADER);
-		fprintf (stderr, "\n");
+			fprintf (stderr,"unknown packet type %x\n",c);
+			do {
+				read_n_bytes(fd,buf,1);
+				display_hex(buf,1);
+			} while (buf[0] != END_DATA_HEADER);
+			fprintf (stderr, "\n");
 	}
 
 	return 0;
@@ -461,12 +463,14 @@ int main( int argc, char **argv) {
 		ads1292r_evm_read_response(fd);
 	}
 
+	// Start continuous data streaming by issuing ADS1x9x Read Data Continuous (RDATAC) command.
 	if (strcmp("stream",command)==0) {
 		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x01,0x00);
 		while (1) {
 			ads1292r_evm_read_response (fd);
 		}
 	}
+
 	if (strcmp("stream_stop",command)==0) {
 		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
