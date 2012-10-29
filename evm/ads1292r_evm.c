@@ -2,6 +2,9 @@
  * ads1292r_evm.c- a command line utility to communicate with the
  * TI ADS1292R EVM board running stock firmware.
  *
+ * EVM board schematics, BOM, firmware and sourcecode at
+ * ftp://ftp.ti.com/pub/data_acquisition/ECG_FE/ADS1292/
+ *
  * Author: Joe Desbonnet, jdesbonnet@gmail.com
  * 
  *
@@ -42,6 +45,7 @@
 
 #define CMD_DATA_STREAMING		0x93
 #define DATA_STREAMING_PACKET		0x93
+
 #define CMD_ACQUIRE_DATA		0x94
 
 #define PROC_DATA_DOWNLOAD_COMMAND	0x95
@@ -316,7 +320,7 @@ int ads1292r_evm_read_response (int fd) {
 		break;
 		
 		default:
-		fprintf (stderr,"unknown packet type\n");
+		fprintf (stderr,"unknown packet type %x\n",c);
 		do {
 			read_n_bytes(fd,buf,1);
 			display_hex(buf,1);
@@ -482,7 +486,9 @@ int main( int argc, char **argv) {
 		ads1292r_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
 		ads1292r_evm_read_response(fd);
 	}
-
+	if (strcmp("packet_read",command)==0) {
+		ads1292r_evm_read_response(fd);
+	}
 	ads1292r_evm_close(fd);
 
 	debug (1, "Normal exit");
