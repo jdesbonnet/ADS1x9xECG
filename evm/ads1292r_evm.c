@@ -11,7 +11,7 @@
  * Version 0.1 (13 September 2012)
  * 
  * To compile:
- * gcc -o ads1292r_evm ads1292r_evm.c -lrt
+ * gcc -o ads1292r_evm ads1292r_evm.c
  *
  */
 
