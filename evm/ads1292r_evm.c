@@ -1,6 +1,6 @@
 /**
  * ads1x9x_evm.c- a command line utility to communicate with the
- * TI ADS1292R EVM board running stock firmware.
+ * TI ADS1x9x ECG/EEG AFE EVM board running the supplied firmware.
  *
  * EVM board schematics, BOM, firmware and sourcecode at
  * ftp://ftp.ti.com/pub/data_acquisition/ECG_FE/ADS1292/
@@ -37,7 +37,7 @@
 #define FORMAT_DECIMAL 1
 #define FORMAT_BINARY 2
 
-// Command definitions from ADS1x9x_USB_Communication.h
+// Host/USB protocol command definitions in ADS1x9x_USB_Communication.h
 
 
 #define CMD_REG_WRITE			0x91
@@ -80,7 +80,7 @@
 #define REG_ID 0x00
 
 
-// A structure that represents one frame
+// A structure that represents one frame of Host/USB protocol.
 typedef struct  {
 	uint8_t type;
 	uint8_t data_length;
