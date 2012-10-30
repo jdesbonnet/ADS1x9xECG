@@ -80,6 +80,13 @@
 #define REG_ID 0x00
 
 
+// A structure that represents one frame
+typedef struct  {
+	uint8_t type;
+	uint8_t data_length;
+	uint8_t data[128];
+} ads1x9x_evm_frame_t;
+
 // The debug level set with the -d command line switch
 int debug_level = 0;
 
@@ -271,7 +278,49 @@ void display_hex(uint8_t *buf, int length) {
 	}
 }
 
+/**
+ *
+ * @return The entire frame length (excluding cksum) if successful, -1 on error.
+ */
+int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
+	
+	int i,c;
 
+	// Wait for start of data header
+	do {
+		read_n_bytes (fd,&c,1);
+		//fprintf (stderr,"%02x .",c);
+	} while (c != START_DATA_HEADER);
+
+	//fprintf (stderr,"*** START_OF_DATA ***\n");
+
+	// Need to know type of frame to calculate length
+	read_n_bytes (fd,&c,1);
+	//fprintf (stderr,"c=%02x\n",c);
+
+	switch (c) {
+		case CMD_DATA_STREAMING:
+			// Read HR + RESP + LOFF + 14 x (ch1(16bits) + ch2(16bits))  + 2xEOH = 61 bytes
+			read_n_bytes (fd,frame->data,59);
+			break;
+
+		case CMD_REG_READ:
+		case CMD_QUERY_FIRMWARE_VERSION:
+			read_n_bytes (fd,frame->data,5);
+			break;
+		
+		default:
+			fprintf (stderr,"unknown packet type %x\n",c);
+			uint8_t buf[4];
+			do {
+				read_n_bytes(fd,buf,1);
+				display_hex(buf,1);
+			} while (buf[0] != END_DATA_HEADER);
+			fprintf (stderr, "\n");
+	}
+
+	return 0;
+}
 /**
  *
  * @return The entire frame length (excluding cksum) if successful, -1 on error.
