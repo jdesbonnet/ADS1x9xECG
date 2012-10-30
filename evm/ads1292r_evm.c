@@ -83,7 +83,7 @@
 // A structure that represents one frame of Host/USB protocol.
 typedef struct  {
 	uint8_t type;
-	uint8_t data_length;
+	uint8_t length;
 	uint8_t data[128];
 } ads1x9x_evm_frame_t;
 
@@ -304,13 +304,13 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 	switch (c) {
 		case CMD_DATA_STREAMING:
 			// Read HR + RESP + LOFF + 14 x (ch1(16bits) + ch2(16bits))  + 2xEOH = 61 bytes
-			frame->data_length = 59;
+			frame->length = 59;
 			read_n_bytes (fd,frame->data,61);
 			break;
 
 		case CMD_REG_READ:
 		case CMD_QUERY_FIRMWARE_VERSION:
-			frame->data_length = 5;
+			frame->length = 5;
 			read_n_bytes (fd,frame->data,5);
 			break;
 		
@@ -324,7 +324,7 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 				i++;
 			} while (buf[0] != END_DATA_HEADER);
 			fprintf (stderr, "\n");
-			frame->data_length = i-1;
+			frame->length = i-1;
 	}
 
 	return 0;
