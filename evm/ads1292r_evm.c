@@ -279,9 +279,9 @@ void display_hex(uint8_t *buf, int length) {
 }
 
 /**
- * Read a frame from ADS1x9x EVM module.
+ * Read a Host/EVM protocol frame from ADS1x9x EVM module.
  *
- * @return The entire frame length (excluding cksum) if successful, -1 on error.
+ * @return TBD
  */
 int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 	
@@ -330,6 +330,7 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 	return 0;
 }
 /**
+ * @deprecated  Use ads1x9x_evm_read_frame() instead.
  *
  * @return The entire frame length (excluding cksum) if successful, -1 on error.
  */
