@@ -37,6 +37,12 @@
 #define FORMAT_DECIMAL 1
 #define FORMAT_BINARY 2
 
+#define FILTER_40HZ_LOWPASS 1
+// 50Hz notch and 0.5-150Hz pass
+#define FILTER_50HZ_NOTCH 2
+// 60Hz notch and 0.5-150Hz pass
+#define FILTER_60HZ_NOTCH 3
+
 // Host/USB protocol command definitions in ADS1x9x_USB_Communication.h
 
 
@@ -57,7 +63,7 @@
 #define CMD_QUERY_FIRMWARE_VERSION		0x99
 
 #define STATUS_INFO_REQ 			0x9A
-#define FILTER_SELECT_COMMAND		0x9B
+#define CMD_FILTER_SELECT		0x9B
 #define ERASE_MEMORY_COMMAND		0x9C
 
 // Seems to have no effect
@@ -526,37 +532,47 @@ int main( int argc, char **argv) {
 		ads1x9x_evm_read_response(fd);
 	}
 
+
+	if (strcmp("filter",command)==0) {
+		int filterOpt = atoi(argv[optind+2]);
+		// Not clear what the purpose of the first param is. FW code ignores
+		// the filter command if not 0,2,3, but is otherwise not used.
+		ads1x9x_evm_write_cmd(fd,CMD_FILTER_SELECT,0x03,filterOpt);
+		ads1x9x_evm_read_frame (fd, &frame);
+	}
+
 	// Start continuous data streaming by issuing ADS1x9x Read Data Continuous (RDATAC) command.
+	// Streamed data is DSP processed by EVM and is 16 bits per sample.
+
 	if (strcmp("stream",command)==0) {
 		int nframe = atoi(argv[optind+2]);
 
-		// Turn on continuous data streaming
-		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x01,0x00);
+		// Turn on continuous data streaming. This works as a toggle command. Parameters
+		// are ignored.
+		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 
 		int i,j;
-		uint16_t sample;
+		uint8_t hr,resp,loff;
+		int16_t sample;
 		for (j = 0; j < nframe; j++) {
 			ads1x9x_evm_read_frame (fd, &frame);
-			fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",
-				frame.data[0],
-				frame.data[1],
-				frame.data[2]);
+			hr = frame.data[0];
+			resp = frame.data[1];
+			loff = frame.data[2];
 			
 			for (i = 0; i < 14; i++) {
 				// TODO: can we just cast sample rather than all this bit fiddling
-				sample = frame.data[i*2 + 3]<<8 | frame.data[i*2 + 4];
+				sample = frame.data[i*4 + 3]<<8 | frame.data[i*4 + 4];
 				fprintf (stdout,"%d ", sample);
-				sample = frame.data[i*2 + 5]<<8 | frame.data[i*2 + 6];
-				fprintf (stdout,"%d\n", sample);
+				sample = frame.data[i*4 + 5]<<8 | frame.data[i*4 + 6];
+				fprintf (stdout,"%d ", sample);
+				fprintf (stdout,"%d %d %d\n",hr,resp,loff);
 			}
 		}
 		// Turn off continuous data streaming
 		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
 
-	if (strcmp("stream_stop",command)==0) {
-		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
-	}
 	if (strcmp("firmware",command)==0) {
 		ads1x9x_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
 		ads1x9x_evm_read_frame (fd, &frame);
