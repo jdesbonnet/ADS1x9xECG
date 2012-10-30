@@ -279,17 +279,18 @@ void display_hex(uint8_t *buf, int length) {
 }
 
 /**
+ * Read a frame from ADS1x9x EVM module.
  *
  * @return The entire frame length (excluding cksum) if successful, -1 on error.
  */
 int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 	
-	int i,c;
+	int i,c=0;
 
 	// Wait for start of data header
 	do {
 		read_n_bytes (fd,&c,1);
-		//fprintf (stderr,"%02x .",c);
+		//fprintf (stderr,"[ %x ] ",c);
 	} while (c != START_DATA_HEADER);
 
 	//fprintf (stderr,"*** START_OF_DATA ***\n");
@@ -298,25 +299,32 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 	read_n_bytes (fd,&c,1);
 	//fprintf (stderr,"c=%02x\n",c);
 
+	frame->type = c;
+
 	switch (c) {
 		case CMD_DATA_STREAMING:
 			// Read HR + RESP + LOFF + 14 x (ch1(16bits) + ch2(16bits))  + 2xEOH = 61 bytes
-			read_n_bytes (fd,frame->data,59);
+			frame->data_length = 59;
+			read_n_bytes (fd,frame->data,61);
 			break;
 
 		case CMD_REG_READ:
 		case CMD_QUERY_FIRMWARE_VERSION:
+			frame->data_length = 5;
 			read_n_bytes (fd,frame->data,5);
 			break;
 		
 		default:
 			fprintf (stderr,"unknown packet type %x\n",c);
 			uint8_t buf[4];
+			i = 0;
 			do {
 				read_n_bytes(fd,buf,1);
 				display_hex(buf,1);
+				i++;
 			} while (buf[0] != END_DATA_HEADER);
 			fprintf (stderr, "\n");
+			frame->data_length = i-1;
 	}
 
 	return 0;
@@ -335,14 +343,15 @@ int ads1292r_evm_read_response (int fd) {
 	// Wait for start of data header
 	do {
 		read_n_bytes (fd,&c,1);
-		//fprintf (stderr,"%02x .",c);
+		fprintf (stderr,"%02x .",c);
 	} while (c != START_DATA_HEADER);
 
 	//fprintf (stderr,"*** START_OF_DATA ***\n");
 
 	// Read packet type
 	read_n_bytes (fd,&c,1);
-	//fprintf (stderr,"c=%02x\n",c);
+	fprintf (stderr,"c=%02x\n",c);
+
 	switch (c) {
 		case CMD_DATA_STREAMING:
 			read_n_bytes (fd,&heart_rate,1);
@@ -383,7 +392,7 @@ int ads1292r_evm_read_response (int fd) {
 }
 
 /**
- * Write a command. Commands are:
+ * Write a command to ADS1x9x EVM. Commands are:
  * CMD_REG_WRITE (0x91): register, value
  * CMD_REG_READ (0x92): register, 0x00
  * CMD_DATA_STREAMING (0x93): on/off, 0x00  (0x00 = off, 0x01 = on)
@@ -391,7 +400,7 @@ int ads1292r_evm_read_response (int fd) {
  * @return Always 0.
  */
 
-int ads1292r_evm_write_cmd (int fd, int cmd, int param0, int param1) {
+int ads1x9x_evm_write_cmd (int fd, int cmd, int param0, int param1) {
 
 	cmd_buf[0] = START_DATA_HEADER;
 	cmd_buf[1] = cmd;
@@ -499,36 +508,40 @@ int main( int argc, char **argv) {
 	// Ignore anything aleady in the buffer
 	tcflush (fd,TCIFLUSH);
 
+	ads1x9x_evm_frame_t frame;
+
+
 	if (strcmp("readreg",command)==0) {
 		int reg = atoi(argv[optind+2]);
-		ads1292r_evm_write_cmd(fd,CMD_REG_READ,reg,0x00);
-		ads1292r_evm_read_response(fd);
+		ads1x9x_evm_write_cmd(fd,CMD_REG_READ,reg,0x00);
+		ads1x9x_evm_read_frame (fd, &frame);
+		fprintf (stdout, "%x\n", frame.data[1]);
 	}
 
 	if (strcmp("writereg",command)==0) {
 		int reg = atoi(argv[optind+2]);
 		int val = atoi(argv[optind+3]);
-		ads1292r_evm_write_cmd(fd,CMD_REG_WRITE,reg,val);
+		ads1x9x_evm_write_cmd(fd,CMD_REG_WRITE,reg,val);
 		ads1292r_evm_read_response(fd);
 	}
 
 	// Start continuous data streaming by issuing ADS1x9x Read Data Continuous (RDATAC) command.
 	if (strcmp("stream",command)==0) {
-		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x01,0x00);
+		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x01,0x00);
 		while (1) {
 			ads1292r_evm_read_response (fd);
 		}
 	}
 
 	if (strcmp("stream_stop",command)==0) {
-		ads1292r_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
+		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
 	if (strcmp("firmware",command)==0) {
-		ads1292r_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
+		ads1x9x_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
 		ads1292r_evm_read_response(fd);
 	}
 	if (strcmp("restart",command)==0) {
-		ads1292r_evm_write_cmd(fd,CMD_RESTART,0x00,0x00);
+		ads1x9x_evm_write_cmd(fd,CMD_RESTART,0x00,0x00);
 		ads1292r_evm_read_response(fd);
 	}
 	if (strcmp("acquire_data",command)==0) {
@@ -536,7 +549,7 @@ int main( int argc, char **argv) {
 		nsamples &= 0xffff;
 		fprintf (stderr,"nsamples=%d\n",nsamples);
 		//ads1292r_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
-		ads1292r_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
+		ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
 		ads1292r_evm_read_response(fd);
 	}
 	if (strcmp("packet_read",command)==0) {
