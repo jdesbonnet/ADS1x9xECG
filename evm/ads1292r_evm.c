@@ -1,5 +1,5 @@
 /**
- * ads1292r_evm.c- a command line utility to communicate with the
+ * ads1x9x_evm.c- a command line utility to communicate with the
  * TI ADS1292R EVM board running stock firmware.
  *
  * EVM board schematics, BOM, firmware and sourcecode at
@@ -11,7 +11,7 @@
  * Version 0.1 (13 September 2012)
  * 
  * To compile:
- * gcc -o ads1292r_evm ads1292r_evm.c
+ * gcc -o ads1x9x_evm ads1x9x_evm.c
  *
  */
 
@@ -28,7 +28,7 @@
 #include <stdarg.h>
 
 
-#define APP_NAME "ads1292r_evm"
+#define APP_NAME "ads1x9x_evm"
 #define VERSION "0.1, 13 Sep 2012"
 
 #define TRUE 1
@@ -108,7 +108,7 @@ uint8_t cmd_buf[256];
  * @param deviceName Pointer to string with device name (eg "/dev/ttyACM0")
  * @return Operating system file descriptor or -1 if there was an error.
  */
-int ads1292r_evm_open(char *deviceName, int bps) {
+int ads1x9x_evm_open(char *deviceName, int bps) {
 
 	int fd = open(deviceName,O_RDWR);
 	if (fd==0) {
@@ -166,7 +166,7 @@ int ads1292r_evm_open(char *deviceName, int bps) {
  * Close serial IO device.
  * @param fd File descriptor
  */
-void ads1292r_evm_close(int fd) {
+void ads1x9x_evm_close(int fd) {
 	close(fd);
 }
 
@@ -183,7 +183,7 @@ void version () {
  */
 void usage () {
 	fprintf (stderr,"\n");
-	fprintf (stderr,"Usage: ads1292r_evm [-q] [-v] [-h] [-d level] device\n");
+	fprintf (stderr,"Usage: ads1x9x_evm [-q] [-v] [-h] [-d level] device\n");
 
 	//fprintf (stderr,"  -c channel \t Set channel. Allowed values: 11 to 26.\n");	
 	fprintf (stderr,"\n");
@@ -333,7 +333,7 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
  *
  * @return The entire frame length (excluding cksum) if successful, -1 on error.
  */
-int ads1292r_evm_read_response (int fd) {
+int ads1x9x_evm_read_response (int fd) {
 	
 	int i;
 	uint8_t c,v,heart_rate,respiration,lead_off;
@@ -498,7 +498,7 @@ int main( int argc, char **argv) {
 	}
 	
 	// Open device
-	int fd = ads1292r_evm_open(device,speed);
+	int fd = ads1x9x_evm_open(device,speed);
 	if (fd < 1 ) {
 		fprintf (stderr,"Error: unable to open device %s\n", device);
 		return EXIT_FAILURE;
@@ -522,7 +522,7 @@ int main( int argc, char **argv) {
 		int reg = atoi(argv[optind+2]);
 		int val = atoi(argv[optind+3]);
 		ads1x9x_evm_write_cmd(fd,CMD_REG_WRITE,reg,val);
-		ads1292r_evm_read_response(fd);
+		ads1x9x_evm_read_response(fd);
 	}
 
 	// Start continuous data streaming by issuing ADS1x9x Read Data Continuous (RDATAC) command.
@@ -560,24 +560,24 @@ int main( int argc, char **argv) {
 		ads1x9x_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
 		ads1x9x_evm_read_frame (fd, &frame);
 
-		ads1292r_evm_read_response(fd);
+		ads1x9x_evm_read_response(fd);
 	}
 	if (strcmp("restart",command)==0) {
 		ads1x9x_evm_write_cmd(fd,CMD_RESTART,0x00,0x00);
-		ads1292r_evm_read_response(fd);
+		ads1x9x_evm_read_response(fd);
 	}
 	if (strcmp("acquire_data",command)==0) {
 		int nsamples = atoi(argv[optind+2]);
 		nsamples &= 0xffff;
 		fprintf (stderr,"nsamples=%d\n",nsamples);
-		//ads1292r_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
+		//ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
 		ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
-		ads1292r_evm_read_response(fd);
+		ads1x9x_evm_read_response(fd);
 	}
 	if (strcmp("packet_read",command)==0) {
-		ads1292r_evm_read_response(fd);
+		ads1x9x_evm_read_response(fd);
 	}
-	ads1292r_evm_close(fd);
+	ads1x9x_evm_close(fd);
 
 	debug (1, "Normal exit");
 	return EXIT_SUCCESS; 
