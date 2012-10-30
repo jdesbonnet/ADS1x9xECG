@@ -527,10 +527,30 @@ int main( int argc, char **argv) {
 
 	// Start continuous data streaming by issuing ADS1x9x Read Data Continuous (RDATAC) command.
 	if (strcmp("stream",command)==0) {
+		int nframe = atoi(argv[optind+2]);
+
+		// Turn on continuous data streaming
 		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x01,0x00);
-		while (1) {
-			ads1292r_evm_read_response (fd);
+
+		int i,j;
+		uint16_t sample;
+		for (j = 0; j < nframe; j++) {
+			ads1x9x_evm_read_frame (fd, &frame);
+			fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",
+				frame.data[0],
+				frame.data[1],
+				frame.data[2]);
+			
+			for (i = 0; i < 14; i++) {
+				// TODO: can we just cast sample rather than all this bit fiddling
+				sample = frame.data[i*2 + 3]<<8 | frame.data[i*2 + 4];
+				fprintf (stdout,"%d ", sample);
+				sample = frame.data[i*2 + 5]<<8 | frame.data[i*2 + 6];
+				fprintf (stdout,"%d\n", sample);
+			}
 		}
+		// Turn off continuous data streaming
+		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
 
 	if (strcmp("stream_stop",command)==0) {
@@ -538,6 +558,8 @@ int main( int argc, char **argv) {
 	}
 	if (strcmp("firmware",command)==0) {
 		ads1x9x_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
+		ads1x9x_evm_read_frame (fd, &frame);
+
 		ads1292r_evm_read_response(fd);
 	}
 	if (strcmp("restart",command)==0) {
