@@ -562,9 +562,9 @@ int main( int argc, char **argv) {
 			
 			for (i = 0; i < 14; i++) {
 				// TODO: can we just cast sample rather than all this bit fiddling
-				sample = frame.data[i*4 + 3]<<8 | frame.data[i*4 + 4];
+				sample = frame.data[i*4 + 4]<<8 | frame.data[i*4 + 3];
 				fprintf (stdout,"%d ", sample);
-				sample = frame.data[i*4 + 5]<<8 | frame.data[i*4 + 6];
+				sample = frame.data[i*4 + 6]<<8 | frame.data[i*4 + 5];
 				fprintf (stdout,"%d ", sample);
 				fprintf (stdout,"%d %d %d\n",hr,resp,loff);
 			}
