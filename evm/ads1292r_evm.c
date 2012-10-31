@@ -285,7 +285,10 @@ void display_hex(uint8_t *buf, int length) {
 }
 
 /**
- * Read a Host/EVM protocol frame from ADS1x9x EVM module.
+ * Read a Host/EVM protocol frame from ADS1x9x EVM module. Unfortunately
+ * there is no easy way to know the packet length. Scanning for 
+ * END_OF_DATA is not reliable because the EOD value (0x03) is a valid
+ * value for frame payload.
  *
  * @return TBD
  */
@@ -319,7 +322,12 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 			frame->length = 5;
 			read_n_bytes (fd,frame->data,5);
 			break;
-		
+
+		case CMD_ACQUIRE_DATA:
+			// Read 2 x status bytes, 8 x (ch1(24bits) + ch2(24bits) + EOD = 27
+			frame->length = 27;
+			read_n_bytes (fd,frame->data,27);
+			break;
 		default:
 			fprintf (stderr,"unknown packet type %x\n",c);
 			uint8_t buf[4];
@@ -335,6 +343,38 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 
 	return 0;
 }
+
+/**
+ * Read a Host/EVM frame by scanning for END_DATA_HEADER. This cannot be used
+ * in general because frame data may contain END_DATA_HEADER.
+ */
+int ads1x9x_evm_read_frame_to_eod (int fd, ads1x9x_evm_frame_t *frame) {
+	
+	int c=0;
+
+	// Wait for start of data header
+	do {
+		read_n_bytes (fd,&c,1);
+	} while (c != START_DATA_HEADER);
+
+	// read packet type
+	read_n_bytes (fd,&c,1);
+	frame->type = c;
+
+	// Read until END_DATA_HEADER
+	int i = 0;
+	uint8_t buf[4];
+	do {
+		read_n_bytes(fd,buf,1);
+		display_hex(buf,1);
+		frame->data[i]=buf[0];
+		i++;
+	} while (buf[0] != END_DATA_HEADER);
+
+	frame->length = i-1;
+	return 0;
+}
+
 /**
  * @deprecated  Use ads1x9x_evm_read_frame() instead.
  *
@@ -360,20 +400,7 @@ int ads1x9x_evm_read_response (int fd) {
 	fprintf (stderr,"c=%02x\n",c);
 
 	switch (c) {
-		case CMD_DATA_STREAMING:
-			read_n_bytes (fd,&heart_rate,1);
-			read_n_bytes (fd,&respiration,1);
-			read_n_bytes (fd,&lead_off,1);
 
-			fprintf (stderr,"heart_rate=%d\nrespiration=%d\nlead_off=%d\n",heart_rate,respiration,lead_off);
-
-			for (i = 0; i < 14; i++) {
-				read_n_bytes (fd,&sample,2);
-				fprintf (stdout,"%d ", sample);
-				read_n_bytes (fd,&sample,2);
-				fprintf (stdout,"%d\n", sample);
-			}
-			break;
 
 		case CMD_REG_READ:
 			read_n_bytes (fd,buf,5);
@@ -525,7 +552,7 @@ int main( int argc, char **argv) {
 		fprintf (stdout, "%x\n", frame.data[1]);
 	}
 
-	if (strcmp("writereg",command)==0) {
+	else if (strcmp("writereg",command)==0) {
 		int reg = atoi(argv[optind+2]);
 		int val = atoi(argv[optind+3]);
 		ads1x9x_evm_write_cmd(fd,CMD_REG_WRITE,reg,val);
@@ -533,18 +560,19 @@ int main( int argc, char **argv) {
 	}
 
 
-	if (strcmp("filter",command)==0) {
+	else if (strcmp("filter",command)==0) {
 		int filterOpt = atoi(argv[optind+2]);
 		// Not clear what the purpose of the first param is. FW code ignores
 		// the filter command if not 0,2,3, but is otherwise not used.
 		ads1x9x_evm_write_cmd(fd,CMD_FILTER_SELECT,0x03,filterOpt);
+
+		// Read back ack and ignore
 		ads1x9x_evm_read_frame (fd, &frame);
 	}
 
 	// Start continuous data streaming by issuing ADS1x9x Read Data Continuous (RDATAC) command.
-	// Streamed data is DSP processed by EVM and is 16 bits per sample.
-
-	if (strcmp("stream",command)==0) {
+	// Streamed data is DSP processed by EVM firmware and is 16 bits per sample.
+	else if (strcmp("stream",command)==0) {
 		int nframe = atoi(argv[optind+2]);
 
 		// Turn on continuous data streaming. This works as a toggle command. Parameters
@@ -552,13 +580,13 @@ int main( int argc, char **argv) {
 		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 
 		int i,j;
-		uint8_t hr,resp,loff;
+		uint8_t heart_rate,respiration_rate,lead_off;
 		int16_t sample;
 		for (j = 0; j < nframe; j++) {
 			ads1x9x_evm_read_frame (fd, &frame);
-			hr = frame.data[0];
-			resp = frame.data[1];
-			loff = frame.data[2];
+			heart_rate = frame.data[0];
+			respiration_rate = frame.data[1];
+			lead_off = frame.data[2];
 			
 			for (i = 0; i < 14; i++) {
 				// TODO: can we just cast sample rather than all this bit fiddling
@@ -566,33 +594,61 @@ int main( int argc, char **argv) {
 				fprintf (stdout,"%d ", sample);
 				sample = frame.data[i*4 + 6]<<8 | frame.data[i*4 + 5];
 				fprintf (stdout,"%d ", sample);
-				fprintf (stdout,"%d %d %d\n",hr,resp,loff);
+				fprintf (stdout,"%d %d %d\n",heart_rate,respiration_rate,lead_off);
 			}
 		}
-		// Turn off continuous data streaming
+		// Turn off continuous data streaming by reissuing CMD_DATA_STREAMING
 		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
 
-	if (strcmp("firmware",command)==0) {
+	else if (strcmp("firmware",command)==0) {
 		ads1x9x_evm_write_cmd(fd,CMD_QUERY_FIRMWARE_VERSION,0x00,0x00);
 		ads1x9x_evm_read_frame (fd, &frame);
 
 		ads1x9x_evm_read_response(fd);
 	}
-	if (strcmp("restart",command)==0) {
+
+	else if (strcmp("restart",command)==0) {
 		ads1x9x_evm_write_cmd(fd,CMD_RESTART,0x00,0x00);
-		ads1x9x_evm_read_response(fd);
 	}
-	if (strcmp("acquire_data",command)==0) {
+
+	else if (strcmp("acquire_data",command)==0) {
 		int nsamples = atoi(argv[optind+2]);
 		nsamples &= 0xffff;
 		fprintf (stderr,"nsamples=%d\n",nsamples);
-		//ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
-		ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
-		ads1x9x_evm_read_response(fd);
+
+		// Make nsamples multiple of 8
+		nsamples = (nsamples>>3)<<3;
+		fprintf (stderr,"nsamples=%d\n",nsamples);
+
+		// The firmware source has the nsamples lsb first. So why is it working
+		// the other way??!!
+		ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
+		//ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
+		//ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,0x00,0x08);
+
+		// Read back ack from CMD_ACQUIRE_DATA command
+		ads1x9x_evm_read_frame_to_eod (fd, &frame);
+
+		// Echo data
+		int i,j;
+		int nframes = nsamples/8;
+		uint32_t sample;
+		for (j = 0; j < nframes; j++) {
+			ads1x9x_evm_read_frame(fd,&frame);
+			for (i = 0; i < 8; i++) {
+				sample = (frame.data[i*6+2]<<16) | (frame.data[i*6+3]<<8) | (frame.data[i*6+4]);
+				fprintf (stdout, "%d ", sample);
+				sample = (frame.data[i*6+5]<<16) | (frame.data[i*6+6]<<8) | (frame.data[i*6+7]);
+				fprintf (stdout, "%d\n", sample);
+			}
+		}	
 	}
-	if (strcmp("packet_read",command)==0) {
-		ads1x9x_evm_read_response(fd);
+	else if (strcmp("packet_read",command)==0) {
+		ads1x9x_evm_read_frame_to_eod(fd,&frame);
+	}
+	else {
+		fprintf (stderr,"Unrecognized command %s\n",command);
 	}
 	ads1x9x_evm_close(fd);
 
