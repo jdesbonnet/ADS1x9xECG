@@ -324,9 +324,9 @@ int ads1x9x_evm_read_frame (int fd, ads1x9x_evm_frame_t *frame) {
 			break;
 
 		case CMD_ACQUIRE_DATA:
-			// Read 2 x status bytes, 8 x (ch1(24bits) + ch2(24bits) + EOD = 27
-			frame->length = 27;
-			read_n_bytes (fd,frame->data,27);
+			// Read 2 x status bytes, 8 x (ch1(24bits) + ch2(24bits) + EOD = 51
+			frame->length = 51;
+			read_n_bytes (fd,frame->data,51);
 			break;
 		default:
 			fprintf (stderr,"unknown packet type %x\n",c);
@@ -366,7 +366,7 @@ int ads1x9x_evm_read_frame_to_eod (int fd, ads1x9x_evm_frame_t *frame) {
 	uint8_t buf[4];
 	do {
 		read_n_bytes(fd,buf,1);
-		display_hex(buf,1);
+		//display_hex(buf,1);
 		frame->data[i]=buf[0];
 		i++;
 	} while (buf[0] != END_DATA_HEADER);
@@ -615,17 +615,11 @@ int main( int argc, char **argv) {
 	else if (strcmp("acquire_data",command)==0) {
 		int nsamples = atoi(argv[optind+2]);
 		nsamples &= 0xffff;
-		fprintf (stderr,"nsamples=%d\n",nsamples);
 
-		// Make nsamples multiple of 8
+		// Make nsamples a whole multiple of 8
 		nsamples = (nsamples>>3)<<3;
-		fprintf (stderr,"nsamples=%d\n",nsamples);
 
-		// The firmware source has the nsamples lsb first. So why is it working
-		// the other way??!!
 		ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples>>8,nsamples&0xff);
-		//ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,nsamples&0xff,nsamples>>8);
-		//ads1x9x_evm_write_cmd(fd,CMD_ACQUIRE_DATA,0x00,0x08);
 
 		// Read back ack from CMD_ACQUIRE_DATA command
 		ads1x9x_evm_read_frame_to_eod (fd, &frame);
@@ -633,13 +627,15 @@ int main( int argc, char **argv) {
 		// Echo data
 		int i,j;
 		int nframes = nsamples/8;
-		uint32_t sample;
+		int32_t sample;
 		for (j = 0; j < nframes; j++) {
 			ads1x9x_evm_read_frame(fd,&frame);
 			for (i = 0; i < 8; i++) {
 				sample = (frame.data[i*6+2]<<16) | (frame.data[i*6+3]<<8) | (frame.data[i*6+4]);
+				sample << 8;
 				fprintf (stdout, "%d ", sample);
 				sample = (frame.data[i*6+5]<<16) | (frame.data[i*6+6]<<8) | (frame.data[i*6+7]);
+				sample << 8;
 				fprintf (stdout, "%d\n", sample);
 			}
 		}	
