@@ -189,7 +189,7 @@ void version () {
  */
 void usage () {
 	fprintf (stderr,"\n");
-	fprintf (stderr,"Usage: ads1x9x_evm [-q] [-v] [-h] [-d level] device\n");
+	fprintf (stderr,"Usage: ads1x9x_evm [-q] [-v] [-h] [-d level] device command [params...]\n");
 
 	//fprintf (stderr,"  -c channel \t Set channel. Allowed values: 11 to 26.\n");	
 	fprintf (stderr,"\n");
@@ -201,6 +201,7 @@ void usage () {
 	fprintf (stderr,"\n");
 	fprintf (stderr,"Parameters:\n");
 	fprintf (stderr,"  device:  the unix device file corresponding to the device (often /dev/ttyACM0)\n");
+	fprintf (stderr,"  command: readreg reg | writereg reg val | stream nsamples\n");
 	fprintf (stderr,"\n");
 	//fprintf (stderr,"See this blog post for details: \n    http://jdesbonnet.blogspot.com/2012/04/stm32w-rfckit-as-802154-network.html\n");
 	fprintf (stderr,"Version: ");
