@@ -36,6 +36,7 @@
 
 #define FORMAT_DECIMAL 1
 #define FORMAT_BINARY 2
+#define FORMAT_RAW 3
 
 #define FILTER_40HZ_LOWPASS 1
 // 50Hz notch and 0.5-150Hz pass
@@ -481,8 +482,10 @@ int main( int argc, char **argv) {
 				break;
 
 			case 'f':
-				if (optarg[0] = 'b') {
+				if (optarg[0] == 'b') {
 					stream_format = FORMAT_BINARY;
+				} else if (optarg[0] == 'r') {
+					stream_format = FORMAT_RAW;
 				}
 				break;
 			
@@ -585,19 +588,26 @@ int main( int argc, char **argv) {
 		int16_t sample;
 		for (j = 0; j < nframe; j++) {
 			ads1x9x_evm_read_frame (fd, &frame);
-			heart_rate = frame.data[0];
-			respiration_rate = frame.data[1];
-			lead_off = frame.data[2];
+			switch (stream_format) {
+				case FORMAT_RAW:
+					write (STDOUT_FILENO, &frame.data, 59);
+					break;
+				default:
+					heart_rate = frame.data[0];
+					respiration_rate = frame.data[1];
+					lead_off = frame.data[2];
 			
-			for (i = 0; i < 14; i++) {
-				// TODO: can we just cast sample rather than all this bit fiddling
-				sample = frame.data[i*4 + 4]<<8 | frame.data[i*4 + 3];
-				fprintf (stdout,"%d ", sample);
-				sample = frame.data[i*4 + 6]<<8 | frame.data[i*4 + 5];
-				fprintf (stdout,"%d ", sample);
-				fprintf (stdout,"%d %d %d\n",heart_rate,respiration_rate,lead_off);
+					for (i = 0; i < 14; i++) {
+					// TODO: can we just cast sample rather than all this bit fiddling
+						sample = frame.data[i*4 + 4]<<8 | frame.data[i*4 + 3];
+						fprintf (stdout,"%d ", sample);
+						sample = frame.data[i*4 + 6]<<8 | frame.data[i*4 + 5];
+						fprintf (stdout,"%d ", sample);
+						fprintf (stdout,"%d %d %d\n",heart_rate,respiration_rate,lead_off);
+					}
 			}
 		}
+
 		// Turn off continuous data streaming by reissuing CMD_DATA_STREAMING
 		ads1x9x_evm_write_cmd(fd,CMD_DATA_STREAMING,0x00,0x00);
 	}
