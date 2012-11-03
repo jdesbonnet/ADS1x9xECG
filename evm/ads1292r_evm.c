@@ -8,7 +8,7 @@
  * Author: Joe Desbonnet, jdesbonnet@gmail.com
  * 
  *
- * Version 0.1 (13 September 2012)
+ * Version 0.2 (03 November 2012)
  * 
  * To compile:
  * gcc -o ads1x9x_evm ads1x9x_evm.c
@@ -29,7 +29,7 @@
 
 
 #define APP_NAME "ads1x9x_evm"
-#define VERSION "0.1, 13 Sep 2012"
+#define VERSION "0.2, 3 Nov 2012"
 
 #define TRUE 1
 #define FALSE 0
@@ -56,7 +56,7 @@
 #define CMD_ACQUIRE_DATA		0x94
 
 #define PROC_DATA_DOWNLOAD_COMMAND	0x95
-#define DATA_DOWNLOAD_COMMAND		0x96
+#define CMD_DATA_DOWNLOAD		0x96
 #define FIRMWARE_UPGRADE_COMMAND	0x97
 #define START_RECORDING_COMMAND		0x98
 
@@ -658,6 +658,10 @@ int main( int argc, char **argv) {
 		ads1x9x_evm_write_cmd(fd,CMD_ERASE_MEMORY,0x00,0x00);
 		// No response to this command.
 		//ads1x9x_evm_read_frame_to_eod(fd,&frame);
+	}
+	else if (strcmp("data_download",command)==0) {
+		ads1x9x_evm_write_cmd(fd,CMD_DATA_DOWNLOAD,0x00,0x00);
+		ads1x9x_evm_read_frame_to_eod(fd,&frame);
 	} else {
 		fprintf (stderr,"Unrecognized command %s\n",command);
 	}
