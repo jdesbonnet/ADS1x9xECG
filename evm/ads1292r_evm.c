@@ -65,7 +65,7 @@
 
 #define STATUS_INFO_REQ 			0x9A
 #define CMD_FILTER_SELECT		0x9B
-#define ERASE_MEMORY_COMMAND		0x9C
+#define CMD_ERASE_MEMORY		0x9C
 
 // Seems to have no effect
 #define CMD_RESTART				0x9D
@@ -603,7 +603,7 @@ int main( int argc, char **argv) {
 						fprintf (stdout,"%d ", sample);
 						sample = frame.data[i*4 + 6]<<8 | frame.data[i*4 + 5];
 						fprintf (stdout,"%d ", sample);
-						fprintf (stdout,"%d %d %d\n",heart_rate,respiration_rate,lead_off);
+						fprintf (stdout,"%d %d %d \n",heart_rate,respiration_rate,lead_off);
 					}
 			}
 		}
@@ -647,14 +647,18 @@ int main( int argc, char **argv) {
 				fprintf (stdout, "%d ", sample);
 				sample = (frame.data[i*6+5]<<16) | (frame.data[i*6+6]<<8) | (frame.data[i*6+7]);
 				sample << 8;
-				fprintf (stdout, "%d\n", sample);
+				fprintf (stdout, "%d \n", sample);
 			}
 		}	
 	}
 	else if (strcmp("packet_read",command)==0) {
 		ads1x9x_evm_read_frame_to_eod(fd,&frame);
 	}
-	else {
+	else if (strcmp("erase_flash",command)==0) {
+		ads1x9x_evm_write_cmd(fd,CMD_ERASE_MEMORY,0x00,0x00);
+		// No response to this command.
+		//ads1x9x_evm_read_frame_to_eod(fd,&frame);
+	} else {
 		fprintf (stderr,"Unrecognized command %s\n",command);
 	}
 	ads1x9x_evm_close(fd);
