@@ -1,6 +1,8 @@
 /*
  * TI ADS1292(R) user space driver. 
  *
+ * Joe Desbonnet, jdesbonnet@gmail.com
+ *
  */
 
 #include <stdint.h>
