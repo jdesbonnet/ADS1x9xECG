@@ -198,6 +198,11 @@ int main(int argc, char *argv[])
 	int ret = 0;
 	int fd;
 
+	if (argc == 1) {
+		print_usage(argv[0]);
+		exit(0);
+	}
+
 	parse_opts(argc, argv);
 
 	fd = open(device, O_RDWR);
