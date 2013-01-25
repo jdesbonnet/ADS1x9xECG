@@ -518,8 +518,8 @@ int main( int argc, char **argv) {
 	}
 
 	// One parameters are mandatory
-	if (argc - optind < 1) {
-		fprintf (stderr,"Error: missing command arguments. Use -h for help.");
+	if (argc - optind < 2) {
+		fprintf (stderr,"Error: missing command arguments. Use -h for help.\n");
 		exit(EXIT_FAILURE);
 	}
 
